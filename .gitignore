@@ -43,8 +43,27 @@ data/
 *.parquet
 raw-docs/
 
-# Local checkpoints
-.agent/
+# Local checkpoints & caches
 /.cache/
+
+# bhkb FastAPI app artifacts
+bhkb-api/.venv/
+bhkb-api/.env
+bhkb-api/.env.*
+bhkb-api/.mypy_cache/
+bhkb-api/.ruff_cache/
+bhkb-api/.pytest_cache/
+bhkb-api/.coverage
+
+# Next.js app artifacts
+web/node_modules/
+web/.next/
+web/.turbo/
+web/.vercel/
+web/.swc/
+web/.env.local
+web/.env.*.local
+web/.eslintcache
 AGENTS.md
+.agent
 doc

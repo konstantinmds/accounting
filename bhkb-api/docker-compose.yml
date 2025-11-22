@@ -1,0 +1,71 @@
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD: devpassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  temporal:
+    image: temporalio/auto-setup:1.23
+    environment:
+    - DB=postgresql
+    - DB_PORT=5432
+    - POSTGRES_USER=postgres
+    - POSTGRES_PWD=devpassword
+    - POSTGRES_SEEDS=postgres
+    depends_on: [postgres]
+    ports: ["7233:7233", "8233:8233"] # 8233 web
+  
+  minio:
+    image: minio/minio
+    command: server /data --console-address :9001
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    ports: ["9000:9000", "9001:9001"]
+    volumes: ["minio_data:/data"]
+
+
+  api:
+    build:
+      context: ./api
+    environment:
+    - S3_ENDPOINT=http://minio:9000
+    - S3_ACCESS_KEY=minio
+    - S3_SECRET_KEY=minio123
+    - DATABASE_URL=postgresql://postgres:devpassword@postgres:5432/postgres
+    - TEMPORAL_TARGET=temporal:7233
+    - VOYAGE_API_KEY=${VOYAGE_API_KEY}
+    - GEMINI_API_KEY=${GEMINI_API_KEY}
+    depends_on: [temporal, minio, postgres]
+    ports: ["8000:8000"]
+
+
+  worker:
+    build:
+      context: ./api
+    command: ["python","-m","workers.run"]
+    environment:
+    - DATABASE_URL=postgresql://postgres:devpassword@postgres:5432/postgres
+    - TEMPORAL_TARGET=temporal:7233
+    - S3_ENDPOINT=http://minio:9000
+    - S3_ACCESS_KEY=minio
+    - S3_SECRET_KEY=minio123
+    - VOYAGE_API_KEY=${VOYAGE_API_KEY}
+    depends_on: [temporal, postgres, minio]
+
+
+  web:
+    build:
+      context: ../web
+    environment:
+    - NEXT_PUBLIC_API_BASE=http://localhost:8000
+    depends_on: [api]
+    ports: ["3000:3000"]
+
+
+volumes:
+  pgdata:
+  minio_data:

@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+
+[project]
+name = "bhkb-api"
+version = "0.1.0"
+dependencies = [
+  "fastapi",
+  "uvicorn[standard]",
+  "psycopg[binary]",
+  "pydantic>=2",
+  "httpx",
+  "beautifulsoup4",
+  "lxml",
+  "pypdf",
+  "numpy",
+  "scikit-learn",
+  "minio",
+  "pydantic-settings",
+  "psycopg-pool",
+  "sqlalchemy>=2",
+  "alembic",
+  "pytest",
+  "pytest-asyncio",
+  "pytest-cov"
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
