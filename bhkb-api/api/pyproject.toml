@@ -22,7 +22,8 @@ dependencies = [
   "alembic",
   "pytest",
   "pytest-asyncio",
-  "pytest-cov"
+  "pytest-cov",
+  "pyyaml"
 ]
 
 [tool.setuptools.packages.find]
