@@ -11,3 +11,4 @@ lxml
 pypdf
 numpy
 scikit-learn
+pyyaml
