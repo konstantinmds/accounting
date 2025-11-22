@@ -546,23 +546,22 @@ Run everything on a single dev machine with Docker. This validates crawling, ing
 #### Services (docker‑compose)
 
 * **Temporal Server** + Web UI
-* **PostgreSQL** (Temporal persistence + app metadata + pgvector)
+* **PostgreSQL** (Temporal persistence + pgvector)
 * **MinIO** (S3‑compatible object storage)
-* **FastAPI** (backend API)
-* **Worker** (Temporal workers) — separate container for scale‑out
-* **Next.js 14** (admin + search UI)
+* **Elasticsearch** (single-node)
 
 **compose snippet (pgvector, high‑level)**
 
 ```yaml
-version: "3.9"
 services:
   postgres:
     image: pgvector/pgvector:pg15
     environment:
       POSTGRES_PASSWORD: devpass
     ports: ["5432:5432"]
-    volumes: ["pgdata:/var/lib/postgresql/data"]
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
 
   temporal:
     image: temporalio/auto-setup:1.25.0
@@ -595,7 +594,7 @@ services:
     volumes: ["es_data:/usr/share/elasticsearch/data"]
 
 volumes:
-  pgdata:
+  pg_data:
   minio_data:
   es_data:
 ```
@@ -605,16 +604,17 @@ volumes:
 #### Initialization
 
 1. `docker compose up -d`.
-2. In API startup, run: `CREATE EXTENSION IF NOT EXISTS vector;` and create tables/indexes from the **Data Model** and  **Postgres retrieval schema** .
-3. Create MinIO bucket `raw-docs` and bootstrap the Elasticsearch index (e.g., `chunks`) with the analyzer/mapping you need for BCS text.
-4. In web UI or via API, run `POST /ingest/upload` with a pilot PDF.
-5. Try `GET /search?q=PDV prag za registraciju`.
+2. For fresh volumes, pgvector is created via `docker/initdb/00-vector.sql`. For existing volumes, run: `docker compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB -c "CREATE EXTENSION IF NOT EXISTS vector;"`.
+3. Verify services:
+   - Temporal UI: http://localhost:8088
+   - Temporal gRPC: 7233
+   - Elasticsearch health: `curl http://localhost:9200/_cluster/health`
+   - MinIO health: `curl http://localhost:9000/minio/health/live` (console at 9001)
+   - Postgres: `psql -h localhost -U $POSTGRES_USER -d $POSTGRES_DB -c "select 1"`
 
 # Tutor Plan (hands‑on steps)
 
-1. **Clone & boot** : add these files, set `EMBED_PROVIDER`/`EMBED_MODEL_NAME`, `ELASTICSEARCH_URL` (if running remote), and `GEMINI_API_KEY` if you want hosted embeddings; then `docker compose up -d`.
-2. **Seed data** : we’ll ingest one PDF next session and populate `document/clause/chunk/embedding` with a tiny script.
-3. **Test** : hit `http://localhost:8000/search?q=PDV%20prag%20registracije&j=FBIH`.
-4. **Add SPLADE fusion** : we’ll store SPLADE tokens per chunk in a small `sparse_index` table or compute on‑the‑fly and mix into BM25 (kept optional behind a flag).
-
-Next, I’ll generate the **ingest script** and **SPLADE+BM25 fusion** code when you’re ready.
+App services (API/worker/web) land in later tickets. For now, infra-only steps:
+1. **Clone & boot** : `docker compose up -d` with `.env` in place.
+2. **Verify** : Temporal UI at 8088, ES health, MinIO health, pgvector extension present.
+3. When app services are added, we’ll seed data and run hybrid search tests.

@@ -19,8 +19,8 @@ healthcheck:
 	@echo "Checking services..."
 	@curl -fsS http://localhost:9200/_cluster/health >/dev/null && echo "elasticsearch: OK"
 	@curl -fsS http://localhost:9000/minio/health/live >/dev/null && echo "minio: OK"
-	@POSTGRES_USER=$${POSTGRES_USER:-postgres}; POSTGRES_DB=$${POSTGRES_DB:-spec1}; pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -h 127.0.0.1 >/dev/null && echo "postgres: OK"
-	@curl -fsS http://localhost:8088/ >/dev/null && echo "temporal-web: OK"
+	@POSTGRES_USER=$${POSTGRES_USER:-postgres}; POSTGRES_DB=$${POSTGRES_DB:-spec1}; $(COMPOSE) --env-file $(ENV_FILE) exec -T postgres pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -h 127.0.0.1 >/dev/null && echo "postgres: OK"
+	@curl -fsS http://localhost:8088/ >/dev/null && echo "temporal-ui: OK"
 	@echo "Done."
 
 restart:
