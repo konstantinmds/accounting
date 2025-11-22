@@ -66,4 +66,6 @@ web/.env.*.local
 web/.eslintcache
 AGENTS.md
 .agent
+scripts/*
 doc
+scripts/import_github_issues.py
