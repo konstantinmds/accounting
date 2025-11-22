@@ -39,7 +39,7 @@ You want an end‑to‑end system that:
 * Full big-firm features (IFRS consolidation specifics) beyond tagging.
 * Complex workflow automation (e-filing).
 
-> **MVP mode:** Until we formalize the production rollout, every component runs locally via Docker Compose (Temporal, Postgres/pgvector, Elasticsearch/OpenSearch, MinIO, FastAPI, Next.js). No AWS/GCP/Azure services are provisioned yet; the README documents the local-first architecture we are shipping now.
+> **MVP mode:** Until we formalize the production rollout, every component runs locally via Docker Compose (Temporal, Postgres/pgvector, Elasticsearch, MinIO, FastAPI, Next.js). No AWS/GCP/Azure services are provisioned yet; the README documents the local-first architecture we are shipping now.
 
 ## Method
 
@@ -50,7 +50,7 @@ You want an end‑to‑end system that:
 * **Frontend** : Next.js 14 (App Router) running locally via Docker (`next dev`/`next start`) behind the compose network.
 * **Backend API** : FastAPI (uvicorn) container serving public endpoints on localhost; no API Gateway/WAF yet.
 * **Orchestration** : Temporal server + workers running in Docker Compose; workflows manage crawling, parsing, embeddings, upserts, and change reprocessing.
-* **Vector/Sparse** : PostgreSQL + pgvector for dense vectors; **Elasticsearch/OpenSearch** for BM25/lexical; fusion via Reciprocal Rank Fusion + MMR inside the API.
+* **Vector/Sparse** : PostgreSQL + pgvector for dense vectors; **Elasticsearch** for BM25/lexical; fusion via Reciprocal Rank Fusion + MMR inside the API.
 * **Sparse Encoder** : FastEmbed SPLADE for sparse vectors.
 * **Dense Embeddings** : Local open-weight model (default `BAAI/bge-m3` via GGUF/ONNX service) to avoid external APIs; optionally swap to **Gemini Flash Lite Embedding** when network access is acceptable.
 * **Reranking** : Local cross-encoder (`bge-reranker-v2-m3` or similar) with an optional Gemini Flash Lite rerank call if needed.
@@ -228,7 +228,7 @@ To support automated financial reporting (beyond regulatory QA), we will extend 
 * **Frontend** : Next.js 14 (App Router) container served locally; static build can sit on the dev machine.
 * **Backend API** : FastAPI (uvicorn/gunicorn) container exposed on localhost; no API Gateway/WAF layer yet.
 * **Orchestration** : Temporal server + workers via docker-compose; workflows manage crawling, parsing, embeddings, upserts, and reprocessing on change.
-* **Vector/Sparse** : Postgres + pgvector for dense vectors plus Elasticsearch/OpenSearch for BM25; fusion handled inside the API.
+* **Vector/Sparse** : Postgres + pgvector for dense vectors plus Elasticsearch for BM25; fusion handled inside the API.
 * **Sparse Encoder** : FastEmbed SPLADE for sparse vectors.
 * **Dense Embeddings** : Local open-weight encoder (default `BAAI/bge-m3`) with optional Gemini Flash Lite embeddings if the workstation lacks GPU acceleration.
 * **Reranking** : Local cross-encoder (`bge-reranker-v2-m3` or similar) with an optional Gemini Flash Lite rerank endpoint.
@@ -240,7 +240,7 @@ To support automated financial reporting (beyond regulatory QA), we will extend 
 
 ### Why this stack fits
 
-* **Postgres + pgvector** keep metadata and dense vectors in one database; **Elasticsearch/OpenSearch** handles the heavy BM25 work and scales horizontally when the corpus grows.
+* **Postgres + pgvector** keep metadata and dense vectors in one database; **Elasticsearch** handles the heavy BM25 work and scales horizontally when the corpus grows.
 * **BAAI/bge-m3** (or similar multilingual local encoders) handle Bosnian/Croatian/Serbian text offline; they run on CPU/GPU and keep embeddings on the workstation.
 * **FastEmbed SPLADE** provides strong sparse signals and integrates cleanly with Postgres FTS for hybrid retrieval.
 * **Temporal**’s Python SDK delivers durable, retryable workflows so failed steps resume at the activity level—critical for flaky public sources.
@@ -314,7 +314,7 @@ component "KB API" as API
 
 database "PostgreSQL (+pgvector for ops)" as PG
 database "Object Storage (S3 raw)" as S3
-component "Elasticsearch/OpenSearch" as ES
+component "Elasticsearch" as ES
 
 Admin --> AdminUI
 User --> API
@@ -450,7 +450,7 @@ CREATE TABLE change_event (
 * **Crawler** : Python + Playwright (JavaScript rendering) supplemented by `requests` for static pages; orchestrated by **Temporal Workflows** (schedules, retries, backoff).
 * **Parsing** : PyMuPDF / pdfminer.six; `python-docx`; `readability-lxml` for HTML; **Tesseract OCR** for scans.
 * **Storage** : PostgreSQL 15 with  **pgvector** ; object storage (S3‑compatible or MinIO) for raw files.
-* **Search** : Postgres full‑text (tsvector) for BM25‑like ranking + pgvector for embeddings. (Option to upgrade to OpenSearch later.)
+* **Search** : Postgres full‑text (tsvector) for BM25‑like ranking + pgvector for embeddings. (Option to swap to OpenSearch later if desired.)
 * **Embeddings** : Multilingual model suitable for BCS (e.g., "bge-m3" or equivalent) stored as 1024‑d vectors.
 * **Re‑ranker** : Cross‑encoder (e.g., "bge‑reranker‑v2‑m3" or equivalent open‑source) for precision.
 * **Admin UI & API** : FastAPI backend; React/Next.js admin.
@@ -558,22 +558,23 @@ Run everything on a single dev machine with Docker. This validates crawling, ing
 version: "3.9"
 services:
   postgres:
-    image: postgres:15
+    image: pgvector/pgvector:pg15
     environment:
       POSTGRES_PASSWORD: devpass
     ports: ["5432:5432"]
     volumes: ["pgdata:/var/lib/postgresql/data"]
 
   temporal:
-    image: temporalio/auto:1.23
+    image: temporalio/auto-setup:1.25.0
     environment:
       - DB=postgresql
       - DB_PORT=5432
       - POSTGRES_USER=postgres
       - POSTGRES_PWD=devpass
       - POSTGRES_SEEDS=postgres
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
     depends_on: [postgres]
-    ports: ["7233:7233", "8233:8233"] # 8233 web
+    ports: ["7233:7233", "8088:8233"] # Temporal UI via auto-setup
 
   minio:
     image: minio/minio
@@ -584,64 +585,22 @@ services:
     ports: ["9000:9000", "9001:9001"]
     volumes: ["minio_data:/data"]
 
-  opensearch:
-    image: opensearchproject/opensearch:2.11.0
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
     environment:
       - discovery.type=single-node
-      - OPENSEARCH_SECURITY_ENABLED=false
-      - bootstrap.memory_lock=true
-      - "OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g"
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-    ports: ["9200:9200", "9600:9600"]
-    volumes: ["os_data:/usr/share/opensearch/data"]
-
-  api:
-    build: ./api
-    environment:
-      - S3_ENDPOINT=http://minio:9000
-      - S3_ACCESS_KEY=minio
-      - S3_SECRET_KEY=minio123
-      - DATABASE_URL=postgresql://postgres:devpass@postgres:5432/postgres
-      - TEMPORAL_TARGET=temporal:7233
-      - EMBED_PROVIDER=local
-      - EMBED_MODEL_NAME=BAAI/bge-m3
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - GEMINI_EMBED_MODEL=text-embedding-004  # Gemini Flash Lite embedding
-      - ELASTICSEARCH_URL=http://opensearch:9200
-    depends_on: [temporal, minio, postgres, opensearch]
-    ports: ["8000:8000"]
-
-  worker:
-    build: ./api
-    command: ["python","-m","workers.run"]
-    environment:
-      - DATABASE_URL=postgresql://postgres:devpass@postgres:5432/postgres
-      - TEMPORAL_TARGET=temporal:7233
-      - S3_ENDPOINT=http://minio:9000
-      - S3_ACCESS_KEY=minio
-      - S3_SECRET_KEY=minio123
-      - EMBED_PROVIDER=local
-      - EMBED_MODEL_NAME=BAAI/bge-m3
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - GEMINI_EMBED_MODEL=text-embedding-004
-      - ELASTICSEARCH_URL=http://opensearch:9200
-    depends_on: [temporal, postgres, minio, opensearch]
-
-  web:
-    build: ./web
-    environment:
-      - NEXT_PUBLIC_API_BASE=http://localhost:8000
-    depends_on: [api]
-    ports: ["3000:3000"]
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports: ["9200:9200"]
+    volumes: ["es_data:/usr/share/elasticsearch/data"]
 
 volumes:
   pgdata:
   minio_data:
-  os_data:
+  es_data:
 ```
+
+> Note: Application services (API/worker/web) run in other tickets; only infra is shown here.
 
 #### Initialization
 
