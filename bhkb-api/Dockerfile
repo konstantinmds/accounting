@@ -14,6 +14,9 @@ Path('requirements.txt').write_text('\n'.join(deps))
 PY
 RUN pip install --no-cache-dir -r requirements.txt && rm requirements.txt
 
+COPY alembic.ini ./alembic.ini
+COPY alembic ./alembic
 COPY app ./app
+COPY workers ./workers
 EXPOSE 8000
 CMD ["uvicorn","app.main:app","--host","0.0.0.0","--port","8000"]

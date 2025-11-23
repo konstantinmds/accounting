@@ -1,16 +1,16 @@
 .PHONY: coverage test install migrate downgrade
 
 install:
-	pip install -e api
+	pip install -e .
 
 test:
-	PYTHONPATH=api pytest
+	PYTHONPATH=. pytest
 
 coverage:
-	PYTHONPATH=api pytest --cov=app --cov-report=term-missing
+	PYTHONPATH=. pytest --cov=app --cov-report=term-missing
 
 migrate:
-	cd api && alembic upgrade head
+	alembic upgrade head
 
 downgrade:
-	cd api && alembic downgrade -1
+	alembic downgrade -1
