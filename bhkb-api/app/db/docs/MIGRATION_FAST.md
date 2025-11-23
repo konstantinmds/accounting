@@ -1,3 +1,5 @@
+
+
 • Yes. After your recent changes the container will auto-run migrations on startup, but you still need to generate
   the migration files when you change the schema—just like makemigrations/migrate in Django. Here’s the full
   workflow and why each piece is there:

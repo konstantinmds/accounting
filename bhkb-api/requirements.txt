@@ -4,6 +4,7 @@ pydantic
 pydantic-settings
 httpx
 psycopg[binary]
+psycopg2-binary
 psycopg-pool
 minio
 beautifulsoup4

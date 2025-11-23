@@ -51,7 +51,7 @@ async def lifespan(app: FastAPI):
     run_migrations(settings.DATABASE_URL)
 
     # Initialize DB pool for PostgreSQL connections
-    app.state.db_pool = create_pool(settings.DATABASE_URL)
+    app.state.db_pool = await create_pool(settings.DATABASE_URL)
 
     # Create HTTP client with 30s timeout
     app.state.http = httpx.AsyncClient(timeout=30)

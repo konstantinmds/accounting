@@ -6,9 +6,6 @@ class Settings(BaseSettings):
     S3_ACCESS_KEY: str | None = None
     S3_SECRET_KEY: str | None = None
 
-    # Optional model/api keys
-    VOYAGE_API_KEY: str | None = None
-
     # App
     APP_NAME: str = "BH KB API"
     APP_ENV: str = "dev"

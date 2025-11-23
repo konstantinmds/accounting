@@ -8,6 +8,7 @@ dependencies = [
   "fastapi",
   "uvicorn[standard]",
   "psycopg[binary]",
+  "psycopg2-binary",
   "pydantic>=2",
   "httpx",
   "beautifulsoup4",
