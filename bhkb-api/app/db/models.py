@@ -34,11 +34,24 @@ class Tenant(Base):
 
 class CaseFile(Base):
     __tablename__ = "case_file"
-    __table_args__ = (Index("idx_case_tenant", "tenant_id"),)
+    __table_args__ = (
+        Index("idx_case_tenant", "tenant_id"),
+        Index("idx_case_filters", "tenant_id", "topic", "jurisdiction", "period"),
+        CheckConstraint("topic IN ('VAT','CIT','PAYROLL','FR','BOOKKEEPING','DEADLINES')", name="ck_case_topic"),
+        CheckConstraint("jurisdiction IN ('BIH','FBIH','RS','BD')", name="ck_case_jurisdiction"),
+        CheckConstraint("status IN ('open','closed','archived')", name="ck_case_status"),
+    )
 
     id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, server_default=text("gen_random_uuid()"))
     tenant_id: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False), ForeignKey("tenant.id", ondelete="CASCADE"))
     label: Mapped[Optional[str]] = mapped_column(Text)
+
+    # NEW: structured metadata
+    topic: Mapped[Optional[str]] = mapped_column(Text)          # 'VAT'|'CIT'|...
+    jurisdiction: Mapped[Optional[str]] = mapped_column(Text)   # 'BIH'|'FBIH'|'RS'|'BD'
+    period: Mapped[Optional[str]] = mapped_column(Text)         # '2025-10' | '2025' | '2025-Q3'
+    status: Mapped[str] = mapped_column(Text, server_default=text("'open'"), nullable=False)
+
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=text("now()"), nullable=False)
 
     tenant: Mapped[Optional[Tenant]] = relationship(back_populates="cases")
