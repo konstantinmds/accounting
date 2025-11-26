@@ -51,7 +51,11 @@ def resolve_and_validate(path: Path, inbox_root: Path) -> Path:
         is_relative = resolved.is_relative_to(root_resolved)
     except AttributeError:
         # Python <3.9 fallback
-        is_relative = str(resolved).startswith(str(root_resolved))
+        try:
+            resolved.relative_to(root_resolved)
+            is_relative = True
+        except ValueError:
+            is_relative = False
     if not is_relative:
         raise ValueError("path escapes inbox root")
     return resolved
