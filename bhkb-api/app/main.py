@@ -59,7 +59,7 @@ async def lifespan(app: FastAPI):
     # Initialize MinIO/S3 client if credentials are provided
     if settings.S3_ENDPOINT and settings.S3_ACCESS_KEY and settings.S3_SECRET_KEY:
         app.state.minio = Minio(
-            settings.S3_ENDPOINT.replace("http://","").replace("https://",""),
+            settings.S3_ENDPOINT.replace("http://", "").replace("https://", ""),
             access_key=settings.S3_ACCESS_KEY,
             secret_key=settings.S3_SECRET_KEY,
             secure=settings.S3_ENDPOINT.startswith("https"),

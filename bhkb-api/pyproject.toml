@@ -16,7 +16,7 @@ dependencies = [
   "pypdf",
   "numpy",
   "scikit-learn",
-  "minio",
+  "minio>=7.1.0,<7.2.0",  # Pin to 7.1.x - v7.2+ has breaking API changes
   "pydantic-settings",
   "psycopg-pool",
   "sqlalchemy>=2.0",
@@ -24,9 +24,11 @@ dependencies = [
   "pytest",
   "pytest-asyncio",
   "pytest-cov",
-  "pyyaml"
+  "pyyaml",
+  "prometheus-client",
+  "pathspec>=0.11.0"
 ]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["app*"]
+include = ["app*", "watcher*"]

@@ -60,6 +60,23 @@ You want an end‑to‑end system that:
 * **Queueing/Events** : Temporal workflows, signals, and task queues handle scheduling/backpressure; no SQS/EventBridge yet.
 * **Secrets** : `.env`/Docker secrets on the dev machine for Gemini and any optional remote services.
 
+## Folder Watcher (MVP)
+
+This repo includes a watcher service that scans `INBOX_ROOT` (default `./inbox`) for files matching `inbox/<tenant_slug>/<case_uuid>/<drop_uuid>/<filename>`. Valid files are snapshotted to MinIO at `raw/<sha[:2]>/<sha>`, registered as `artifact` rows, and enqueued as `ingest_task(pending)`. Invalid inputs land in `dead_letter`. Metrics are exposed on `:8002/metrics`.
+
+Quick start:
+
+1. Copy `.env.example` to `.env` and adjust credentials.
+2. Create the inbox folder: `mkdir -p inbox`.
+3. Seed a tenant/case (run against your Postgres):
+   ```sql
+   INSERT INTO tenant(slug,name) VALUES('acme','Acme d.o.o.') ON CONFLICT DO NOTHING;
+   INSERT INTO case_file(id,tenant_id,label) VALUES('22222222-2222-2222-2222-222222222222',(SELECT id FROM tenant WHERE slug='acme'),'VAT FBiH 2025-10');
+   ```
+4. Start services: `docker compose up -d watcher postgres minio` (or the full stack).
+5. Drop a file via atomic rename into `inbox/acme/22222222-2222-2222-2222-222222222222/33333333-3333-3333-3333-333333333333/sample.xlsx`.
+6. Verify: `artifact` + `ingest_task` rows exist, file moved to `inbox/.processed/...`, and metrics at http://localhost:8002/metrics show `watcher_files_seen_total` and `watcher_artifacts_created_total{tenant="acme"}`.
+
 ### Retrieval Settings (updated)
 
 ```
