@@ -6,7 +6,8 @@ httpx
 psycopg[binary]
 psycopg2-binary
 psycopg-pool
-minio
+# MinIO client 7.2+ made __init__ keyword-only; keep 7.1.x to match code.
+minio>=7.1.0,<7.2.0
 beautifulsoup4
 lxml
 pypdf

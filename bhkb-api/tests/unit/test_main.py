@@ -56,7 +56,10 @@ async def test_lifespan_initializes_resources(monkeypatch):
 
     monkeypatch.setattr("app.main.run_migrations", lambda url: None)
     monkeypatch.setattr("app.main.Settings", lambda: DummySettings())
-    monkeypatch.setattr("app.main.create_pool", lambda dsn: dummy_pool)
+    async def fake_create_pool(dsn: str):
+        return dummy_pool
+
+    monkeypatch.setattr("app.main.create_pool", fake_create_pool)
     monkeypatch.setattr("app.main.httpx", SimpleNamespace(AsyncClient=DummyHttpClient))
 
     captured_minio = {}
