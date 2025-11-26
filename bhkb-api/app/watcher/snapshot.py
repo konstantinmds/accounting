@@ -10,7 +10,7 @@ class SnapshotError(RuntimeError):
 
 def build_raw_key(sha256: str) -> str:
     prefix = sha256[:2]
-    return f"{prefix}/{sha256}"
+    return f"raw/{prefix}/{sha256}"
 
 
 def snapshot_file(

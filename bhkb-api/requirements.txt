@@ -19,3 +19,5 @@ alembic
 pytest
 pytest-asyncio
 pytest-cov
+prometheus-client
+pathspec

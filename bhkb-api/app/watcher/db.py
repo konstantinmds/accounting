@@ -3,6 +3,7 @@ from __future__ import annotations
 import psycopg
 from psycopg import sql
 from psycopg.errors import UniqueViolation
+from psycopg.types.json import Json
 
 
 def open_conn(dsn: str) -> psycopg.Connection:
@@ -77,9 +78,10 @@ def write_dead_letter(
     last_error: str | None,
     error_blob: dict | None,
 ) -> None:
+    payload = Json(error_blob) if error_blob is not None else None
     with conn.cursor() as cur:
         cur.execute(
             "INSERT INTO dead_letter (target, failed_activity, last_error, error_blob) VALUES (%s,%s,%s,%s)",
-            (target, failed_activity, last_error, error_blob),
+            (target, failed_activity, last_error, payload),
         )
     conn.commit()
