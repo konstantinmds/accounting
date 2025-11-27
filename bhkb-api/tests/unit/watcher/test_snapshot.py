@@ -9,7 +9,7 @@ from app.watcher.snapshot import SnapshotError, build_raw_key, snapshot_file
 
 def test_build_raw_key():
     key = build_raw_key("a" * 64)
-    assert key.startswith("aa/")
+    assert key == "raw/aa/" + ("a" * 64)
 
 
 def test_snapshot_retry_and_fail():

@@ -49,6 +49,48 @@ def test_upsert_and_duplicate(seeded_tenant_case):
         conn.close()
 
 
+def test_upsert_allows_other_case(seeded_tenant_case):
+    dsn, tenant_id, case_id = seeded_tenant_case
+    with psycopg.connect(dsn) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO case_file (tenant_id, label) VALUES (%s,%s) RETURNING id",
+                (tenant_id, "Case B"),
+            )
+            other_case = cur.fetchone()[0]
+        conn.commit()
+
+    conn = open_conn(dsn)
+    try:
+        first_artifact, first_task = upsert_artifact_and_task(
+            conn,
+            tenant_id=tenant_id,
+            case_id=case_id,
+            drop_id=str(uuid.uuid4()),
+            filename="file.txt",
+            src_path="inbox/acme/case/drop/file.txt",
+            s3_uri="s3://raw/aa/bb",
+            sha256="b" * 64,
+            size_bytes=10,
+        )
+        assert first_artifact is not None and first_task is not None
+
+        second_artifact, second_task = upsert_artifact_and_task(
+            conn,
+            tenant_id=tenant_id,
+            case_id=other_case,
+            drop_id=str(uuid.uuid4()),
+            filename="file.txt",
+            src_path="inbox/acme/case/drop/file.txt",
+            s3_uri="s3://raw/aa/bb",
+            sha256="b" * 64,
+            size_bytes=10,
+        )
+        assert second_artifact is not None and second_task is not None
+    finally:
+        conn.close()
+
+
 def test_authorize_case_mismatch(seeded_tenant_case):
     dsn, tenant_id, case_id = seeded_tenant_case
     other_tenant = str(uuid.uuid4())
